@@ -31,7 +31,7 @@ final class HandDetector {
 
         return observations.compactMap { observation in
             guard let recognized = try? observation.recognizedPoints(.all) else { return nil }
-            var points: [Joint: CGPoint] = [:]
+            var points: [AirTouchCore.Joint: CGPoint] = [:]
             for (name, point) in recognized where point.confidence >= minimumConfidence {
                 guard let joint = HandDetector.jointMap[name] else { continue }
                 // Vision: origin bottom-left. AirTouch: origin top-left, mirrored.
@@ -42,7 +42,7 @@ final class HandDetector {
         }
     }
 
-    static let jointMap: [VNHumanHandPoseObservation.JointName: Joint] = [
+    static let jointMap: [VNHumanHandPoseObservation.JointName: AirTouchCore.Joint] = [
         .wrist: .wrist,
         .thumbCMC: .thumbCMC, .thumbMP: .thumbMP, .thumbIP: .thumbIP, .thumbTip: .thumbTip,
         .indexMCP: .indexMCP, .indexPIP: .indexPIP, .indexDIP: .indexDIP, .indexTip: .indexTip,
