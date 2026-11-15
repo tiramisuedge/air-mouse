@@ -27,11 +27,36 @@ enum Sensitivity: String, CaseIterable, Identifiable {
     }
 }
 
+/// How hard the cursor is smoothed. Gentle is steadiest, Quick is most responsive.
+enum Pace: String, CaseIterable, Identifiable {
+    case gentle, natural, quick
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .gentle: return "Gentle (steadiest)"
+        case .natural: return "Natural"
+        case .quick: return "Quick (most responsive)"
+        }
+    }
+
+    /// 1 euro filter settings. A lower cutoff is calmer when your hand rests,
+    /// a higher beta lets go of the smoothing sooner when you move.
+    var smoothing: (minCutoff: Double, beta: Double) {
+        switch self {
+        case .gentle: return (0.7, 5.0)
+        case .natural: return (1.0, 8.0)
+        case .quick: return (1.6, 12.0)
+        }
+    }
+}
+
 struct StatusSummary: Equatable {
     var text: String
     var icon: String
 
-    static let off = StatusSummary(text: "Off", icon: "hand.raised.slash")
+    static let off = StatusSummary(text: "Camera asleep", icon: "hand.raised.slash")
 }
 
 /// Owns everything: camera pipeline, gesture engine, input, overlay, settings.
@@ -39,6 +64,7 @@ struct StatusSummary: Equatable {
 final class AppState: ObservableObject {
     private enum Keys {
         static let sensitivity = "sensitivity"
+        static let pace = "pace"
         static let showOverlay = "showOverlay"
         static let requirePalm = "requirePalm"
         static let mirrorCamera = "mirrorCamera"
@@ -60,6 +86,9 @@ final class AppState: ObservableObject {
 
     @Published var sensitivity: Sensitivity {
         didSet { save(sensitivity.rawValue, Keys.sensitivity); applyConfig() }
+    }
+    @Published var pace: Pace {
+        didSet { save(pace.rawValue, Keys.pace); applyConfig() }
     }
     @Published var showOverlay: Bool {
         didSet { save(showOverlay, Keys.showOverlay); if !showOverlay { overlay.hideAll() } }
@@ -95,6 +124,7 @@ final class AppState: ObservableObject {
     init() {
         let d = UserDefaults.standard
         _sensitivity = Published(initialValue: Sensitivity(rawValue: d.string(forKey: Keys.sensitivity) ?? "") ?? .medium)
+        _pace = Published(initialValue: Pace(rawValue: d.string(forKey: Keys.pace) ?? "") ?? .natural)
         _showOverlay = Published(initialValue: d.object(forKey: Keys.showOverlay) as? Bool ?? true)
         _requirePalm = Published(initialValue: d.object(forKey: Keys.requirePalm) as? Bool ?? true)
         _mirrorCamera = Published(initialValue: d.object(forKey: Keys.mirrorCamera) as? Bool ?? true)
@@ -343,6 +373,8 @@ final class AppState: ObservableObject {
         var config = engine.config
         config.zoneSize = sensitivity.zoneSize
         config.requirePalmToEngage = requirePalm
+        config.smoothingMinCutoff = pace.smoothing.minCutoff
+        config.smoothingBeta = pace.smoothing.beta
         engine.config = config
         preview.zone = CGRect(
             x: config.zoneCenter.x - config.zoneSize.width / 2,

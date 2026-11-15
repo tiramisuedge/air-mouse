@@ -88,8 +88,8 @@ public struct GestureConfig {
     public var clickFreeze = 0.15
     /// Movement (normalized screen units) needed while pinched before it becomes a drag.
     public var dragDeadzone = 0.02
-    public var doubleClickInterval = 0.45
-    public var doubleClickDistance = 0.03
+    public var doubleClickInterval = 0.75
+    public var doubleClickDistance = 0.09
 
     /// Scroll pixels per unit of hand movement (frame-height units).
     public var scrollGain = 2500.0
@@ -113,9 +113,19 @@ public struct GestureConfig {
 
     /// Frames a new pose must be seen before it's accepted.
     public var poseDebounceFrames = 2
+    /// Pinches are accepted after fewer frames: waiting two frames twice over ate most
+    /// of the double-click window on a camera that runs well under 30 fps.
+    public var pinchDebounceFrames = 1
 
-    public var smoothingMinCutoff = 1.2
-    public var smoothingBeta = 6.0
+    public var smoothingMinCutoff = 1.0
+    public var smoothingBeta = 8.0
+
+    /// Hand speed (screen widths per second) below which the cursor is damped for fine aim.
+    public var precisionLowSpeed = 0.10
+    /// Speed at and above which the cursor follows your hand one to one.
+    public var precisionHighSpeed = 0.70
+    /// Share of your movement that reaches the cursor at the slow end. 1 = no damping.
+    public var precisionGain = 0.5
 
     public init() {}
 }
@@ -148,6 +158,8 @@ public final class GestureEngine {
     private var filter = PointFilter()
     private var cursor: CGPoint?
     private var cursorHistory: [Sample] = []
+    private var precisionPoint: CGPoint?
+    private var precisionTime: Double?
 
     // Click / drag
     private var buttonDown = false
@@ -186,6 +198,8 @@ public final class GestureEngine {
         lastHandTime = nil
         cursor = nil
         cursorHistory.removeAll()
+        precisionPoint = nil
+        precisionTime = nil
         filter.reset()
         snapshot = .idle
         return actions
@@ -212,7 +226,7 @@ public final class GestureEngine {
         // Pointer position: the index knuckle is much steadier than the fingertip,
         // and barely moves when you pinch.
         let anchor = primary[.indexMCP] ?? center
-        let pointer = filter.filter(mapToScreen(anchor), time: t)
+        let pointer = precise(filter.filter(mapToScreen(anchor), time: t), t: t)
 
         updatePose(classifier.classify(primary, previous: stablePose), t: t, center: center, actions: &actions)
 
@@ -390,7 +404,10 @@ public final class GestureEngine {
             candidatePose = raw
             candidateCount = 1
         }
-        guard candidatePose != stablePose, candidateCount >= config.poseDebounceFrames else { return }
+        let pinching = candidatePose == .pinch || candidatePose == .middlePinch
+            || stablePose == .pinch || stablePose == .middlePinch
+        let needed = pinching ? config.pinchDebounceFrames : config.poseDebounceFrames
+        guard candidatePose != stablePose, candidateCount >= needed else { return }
         setPose(candidatePose, t: t, center: center, actions: &actions)
     }
 
@@ -476,6 +493,28 @@ public final class GestureEngine {
         let x = (p.x - originX) / zone.width
         let y = (p.y - originY) / zone.height
         return CGPoint(x: min(max(x, 0), 1), y: min(max(y, 0), 1))
+    }
+
+    /// Slows the cursor while your hand creeps, so small targets stop sliding away.
+    /// Fast movement passes through untouched, which also walks the cursor back onto
+    /// the exact point your hand maps to, so the damping never accumulates.
+    private func precise(_ p: CGPoint, t: Double) -> CGPoint {
+        guard let last = precisionPoint, let lastT = precisionTime, t > lastT else {
+            precisionPoint = p
+            precisionTime = t
+            return p
+        }
+        let speed = plainDistance(p, last) / (t - lastT)
+        let span = max(config.precisionHighSpeed - config.precisionLowSpeed, 0.0001)
+        let ratio = min(1, max(0, (speed - config.precisionLowSpeed) / span))
+        let gain = config.precisionGain + (1 - config.precisionGain) * ratio
+        let result = CGPoint(
+            x: last.x + (p.x - last.x) * CGFloat(gain),
+            y: last.y + (p.y - last.y) * CGFloat(gain)
+        )
+        precisionPoint = result
+        precisionTime = t
+        return result
     }
 
     private func plainDistance(_ a: CGPoint, _ b: CGPoint) -> Double {

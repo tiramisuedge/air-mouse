@@ -19,10 +19,9 @@ struct MenuContent: View {
     @ObservedObject var state: AppState
 
     var body: some View {
-        Toggle("Enable AirTouch   ⌥⌘A", isOn: Binding(
-            get: { state.isEnabled },
-            set: { state.setEnabled($0) }
-        ))
+        Button(state.isEnabled ? "Turn AirTouch Off   ⌥⌘A" : "Turn AirTouch On   ⌥⌘A") {
+            state.toggle()
+        }
 
         Text(state.status.text)
 
@@ -41,6 +40,12 @@ struct MenuContent: View {
 
         Picker("Sensitivity", selection: $state.sensitivity) {
             ForEach(Sensitivity.allCases) { level in
+                Text(level.title).tag(level)
+            }
+        }
+
+        Picker("Pace", selection: $state.pace) {
+            ForEach(Pace.allCases) { level in
                 Text(level.title).tag(level)
             }
         }
