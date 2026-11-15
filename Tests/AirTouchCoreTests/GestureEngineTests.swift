@@ -167,6 +167,21 @@ final class GestureEngineTests: XCTestCase {
         XCTAssertFalse(drawn.contains { if case .mouseDown = $0 { return true } else { return false } })
     }
 
+    func testScreenEdgesAreReachedBeforeTheHandLeavesTheZone() {
+        engage()
+        let config = engine.config
+        let halfHeight = config.zoneSize.height / 2
+
+        // Nine tenths of the way down the zone, so the hand is still comfortably framed.
+        let low = config.zoneCenter.y + halfHeight * 0.9
+        feed(FakeHand.point(at: CGPoint(x: 0.5, y: low)), for: 1.0)
+        XCTAssertEqual(Double(engine.snapshot.pointer?.y ?? 0), 1.0, accuracy: 0.01)
+
+        let high = config.zoneCenter.y - halfHeight * 0.9
+        feed(FakeHand.point(at: CGPoint(x: 0.5, y: high)), for: 1.0)
+        XCTAssertEqual(Double(engine.snapshot.pointer?.y ?? 1), 0.0, accuracy: 0.01)
+    }
+
     func testPinchClicks() {
         engage()
         feed(FakeHand.point(), for: 0.3)

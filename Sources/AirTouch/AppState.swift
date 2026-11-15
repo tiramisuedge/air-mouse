@@ -429,11 +429,16 @@ final class AppState: ObservableObject {
         config.smoothingMinCutoff = pace.smoothing.minCutoff
         config.smoothingBeta = pace.smoothing.beta
         engine.config = config
+        // Draw the box you actually have to cover, which is smaller than the zone
+        // because its outer edge already maps past the screen.
+        let spread = 1 + 2 * config.edgeOvershoot
+        let width = config.zoneSize.width / spread
+        let height = config.zoneSize.height / spread
         preview.zone = CGRect(
-            x: config.zoneCenter.x - config.zoneSize.width / 2,
-            y: config.zoneCenter.y - config.zoneSize.height / 2,
-            width: config.zoneSize.width,
-            height: config.zoneSize.height
+            x: config.zoneCenter.x - width / 2,
+            y: config.zoneCenter.y - height / 2,
+            width: width,
+            height: height
         )
     }
 

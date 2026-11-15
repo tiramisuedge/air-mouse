@@ -97,8 +97,14 @@ public struct EngineSnapshot: Equatable {
 
 public struct GestureConfig {
     /// The box in the camera frame (normalized, top-left origin) that maps to the whole screen.
-    public var zoneCenter = CGPoint(x: 0.5, y: 0.55)
+    /// Sits above the middle of the frame: raising a hand is comfortable, dropping one to the
+    /// bottom of the camera's view is not, and a hand at the frame edge stops being tracked.
+    public var zoneCenter = CGPoint(x: 0.5, y: 0.50)
     public var zoneSize = CGSize(width: 0.48, height: 0.42)
+    /// Fraction of the zone, on each side, that maps past the edge of the screen. Without it
+    /// the Dock and the menu bar sit in the last pixels, which you can only reach by pushing
+    /// your hand to the edge of the frame, where the camera loses it.
+    public var edgeOvershoot = 0.12
 
     public var requirePalmToEngage = true
     /// Seconds to hold 🖐 still to start.
@@ -644,8 +650,11 @@ public final class GestureEngine {
         let zone = config.zoneSize
         let originX = config.zoneCenter.x - zone.width / 2
         let originY = config.zoneCenter.y - zone.height / 2
-        let x = (p.x - originX) / zone.width
-        let y = (p.y - originY) / zone.height
+        // Spread the box past the screen on every side, then clamp, so you arrive at the
+        // edge of the screen while your hand is still well inside the camera's view.
+        let spread = 1 + 2 * config.edgeOvershoot
+        let x = ((p.x - originX) / zone.width - 0.5) * spread + 0.5
+        let y = ((p.y - originY) / zone.height - 0.5) * spread + 0.5
         return CGPoint(x: min(max(x, 0), 1), y: min(max(y, 0), 1))
     }
 
