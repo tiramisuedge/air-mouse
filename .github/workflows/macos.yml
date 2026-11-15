@@ -36,6 +36,8 @@ jobs:
       - name: Verify bundle
         run: |
           plutil -lint build/AirTouch.app/Contents/Info.plist
+          test -s build/AirTouch.app/Contents/Resources/AppIcon.icns
+          echo "icon: $(stat -f%z build/AirTouch.app/Contents/Resources/AppIcon.icns) bytes"
           codesign --verify --verbose build/AirTouch.app
           file build/AirTouch.app/Contents/MacOS/AirTouch
 

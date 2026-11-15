@@ -15,6 +15,7 @@ rm -rf "$APP"
 mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources"
 cp "$BIN_DIR/AirTouch" "${APP}/Contents/MacOS/AirTouch"
 cp Resources/Info.plist "${APP}/Contents/Info.plist"
+cp Resources/AppIcon.icns "${APP}/Contents/Resources/AppIcon.icns"
 
 # "-" = ad-hoc signature: free, fine for your own Mac.
 # Set CODESIGN_IDENTITY to a certificate name to keep permissions across rebuilds.

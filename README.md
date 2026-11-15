@@ -82,6 +82,17 @@ This builds `AirTouch.app`, copies it to `/Applications` and launches it. A ✋ 
 - Is the cursor moving opposite to your hand? Go to Menu › Directions › **Mirror Camera**.
 - Desktop swipes rely on the default macOS shortcuts **⌃←** / **⌃→** (System Settings › Keyboard › Keyboard Shortcuts › Mission Control).
 
+## The icon
+
+`Resources/AppIcon.icns` carries every size macOS asks for, from 16 px up to
+1024 px. If Finder or Spotlight still shows a blank page after an update, they
+are holding a cached icon: `install.sh` already re-registers the app, but you
+can force it with
+
+```bash
+touch /Applications/AirTouch.app && killall Dock
+```
+
 ## Project layout
 
 ```
