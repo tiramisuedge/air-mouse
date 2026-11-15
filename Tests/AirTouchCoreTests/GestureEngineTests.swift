@@ -14,7 +14,8 @@ enum FakeHand {
         little: Finger = .extended,
         thumbOut: Bool = true,
         pinchIndex: Bool = false,
-        pinchMiddle: Bool = false
+        pinchMiddle: Bool = false,
+        pinchRing: Bool = false
     ) -> Hand {
         var p: [Joint: CGPoint] = [:]
         p[.wrist] = CGPoint(x: c.x, y: c.y + 0.15)
@@ -46,6 +47,7 @@ enum FakeHand {
             : CGPoint(x: c.x - 0.02, y: c.y + 0.03)
         if pinchIndex { p[.thumbTip] = p[.indexTip] }
         if pinchMiddle { p[.thumbTip] = p[.middleTip] }
+        if pinchRing { p[.thumbTip] = p[.ringTip] }
 
         return Hand(points: p, aspect: 1)
     }
@@ -62,6 +64,9 @@ enum FakeHand {
     }
     static func victory(at c: CGPoint = CGPoint(x: 0.5, y: 0.55)) -> Hand {
         make(at: c, ring: .curled, little: .curled, thumbOut: false)
+    }
+    static func ringPinch(at c: CGPoint = CGPoint(x: 0.5, y: 0.55)) -> Hand {
+        make(at: c, little: .curled, pinchRing: true)
     }
     static func shaka(at c: CGPoint = CGPoint(x: 0.5, y: 0.55)) -> Hand {
         make(at: c, index: .curled, middle: .curled, ring: .curled, little: .extended, thumbOut: true)
@@ -113,6 +118,39 @@ final class GestureEngineTests: XCTestCase {
         let actions = feed(FakeHand.point(), for: 1)
         XCTAssertTrue(actions.isEmpty)
         XCTAssertFalse(engine.snapshot.engaged)
+    }
+
+    func testRingPinchTapPlaysPause() {
+        engage()
+        feed(FakeHand.point(), for: 0.3)
+        let actions = feed(FakeHand.ringPinch(), for: 0.2) + feed(FakeHand.point(), for: 0.2)
+        XCTAssertTrue(actions.contains(.playPause))
+    }
+
+    func testRingPinchHeldAndLiftedChangesVolume() {
+        engage()
+        feed(FakeHand.point(), for: 0.3)
+        var actions: [GestureAction] = []
+        for step in 0..<20 {
+            let y = 0.55 - Double(step) * 0.01
+            actions += engine.process(hands: [FakeHand.ringPinch(at: CGPoint(x: 0.5, y: y))], time: t)
+            t += dt
+        }
+        XCTAssertTrue(actions.contains(.volume(.up)))
+        XCTAssertFalse(actions.contains(.playPause))
+    }
+
+    func testShakaFlickNavigatesInsteadOfOpeningTheApp() {
+        engage()
+        feed(FakeHand.point(), for: 0.7)
+        var actions: [GestureAction] = []
+        for step in 0..<10 {
+            let x = 0.42 + Double(step) * 0.025
+            actions += engine.process(hands: [FakeHand.shaka(at: CGPoint(x: x, y: 0.55))], time: t)
+            t += dt
+        }
+        XCTAssertTrue(actions.contains(.navigate(.forward)))
+        XCTAssertFalse(actions.contains(.shortcut))
     }
 
     func testPinchClicks() {

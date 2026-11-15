@@ -18,6 +18,14 @@ public enum ZoomDirection: String {
     case zoomIn, zoomOut
 }
 
+public enum VolumeDirection: String {
+    case up, down
+}
+
+public enum NavDirection: String {
+    case back, forward
+}
+
 /// What the engine wants the Mac to do. Points are normalized screen coordinates
 /// (0...1, origin top-left of the main display).
 public enum GestureAction: Equatable {
@@ -36,10 +44,15 @@ public enum GestureAction: Equatable {
     case zoom(ZoomDirection)
     /// The 🤙 app shortcut.
     case shortcut
+    case volume(VolumeDirection)
+    case playPause
+    case navigate(NavDirection)
+    /// Opposite corners of the region to capture, in normalized screen coordinates.
+    case screenshot(from: CGPoint, to: CGPoint)
 }
 
 public enum EngineMode: String {
-    case paused, tracking, pressing, scrolling, palm, fist, shortcut, zooming
+    case paused, tracking, pressing, scrolling, palm, fist, shortcut, zooming, volume, framing
 
     public var title: String {
         switch self {
@@ -51,6 +64,8 @@ public enum EngineMode: String {
         case .fist: return "Fist"
         case .shortcut: return "Shortcut"
         case .zooming: return "Zooming"
+        case .volume: return "Volume"
+        case .framing: return "Framing a shot"
         }
     }
 }
@@ -107,6 +122,13 @@ public struct GestureConfig {
 
     /// Seconds to hold 🤙 to fire the shortcut.
     public var shortcutHold = 0.5
+
+    /// A ring pinch let go inside this, without moving, is a tap: play / pause.
+    public var mediaTapWindow = 0.4
+    /// Vertical hand movement (frame units) per volume step while the ring pinch is held.
+    public var volumeStep = 0.045
+    /// Seconds both hands must hold the corners before the screenshot is taken.
+    public var frameHold = 0.7
 
     /// Two-hand pinch: change in hand separation (fraction) per zoom step.
     public var zoomStep = 0.2
@@ -178,6 +200,10 @@ public final class GestureEngine {
     private var fistActed = false
     private var shortcutFired = false
     private var zoomBaseline: Double?
+    private var shakaHistory: [Sample] = []
+    private var volumeAnchor: CGPoint?
+    private var ringMoved = false
+    private var frameStart: Sample?
 
     public init(config: GestureConfig = GestureConfig(), classifier: PoseClassifier = PoseClassifier()) {
         self.config = config
@@ -274,8 +300,27 @@ public final class GestureEngine {
                 publish(mode: .zooming, pointer: cursor ?? pointer, handCount: usable.count, progress: 0)
                 return actions
             }
+            // Both hands make an L: frame a region and hold to capture it.
+            if classifier.isCorner(a), classifier.isCorner(b),
+               let ca = a[.indexTip], let cb = b[.indexTip] {
+                releaseButton(t: t, actions: &actions)
+                if let start = frameStart {
+                    progress = min(1, (t - start.t) / config.frameHold)
+                    if t - start.t >= config.frameHold, t >= cooldownUntil {
+                        actions.append(.screenshot(from: mapToScreen(ca), to: mapToScreen(cb)))
+                        cooldownUntil = t + 2.0
+                        frameStart = nil
+                        progress = 0
+                    }
+                } else {
+                    frameStart = Sample(t: t, p: center)
+                }
+                publish(mode: .framing, pointer: cursor ?? pointer, handCount: usable.count, progress: progress)
+                return actions
+            }
         }
         zoomBaseline = nil
+        frameStart = nil
 
         // MARK: One hand.
         let mode: EngineMode
@@ -364,8 +409,30 @@ public final class GestureEngine {
                 }
             }
 
+        case .ringPinch:
+            mode = .volume
+            let base = volumeAnchor ?? center
+            let lift = Double(center.y - base.y)
+            if abs(lift) > config.volumeStep {
+                actions.append(.volume(lift < 0 ? .up : .down))
+                volumeAnchor = center
+                ringMoved = true
+            }
+
         case .shaka:
             mode = .shortcut
+            // Flick sideways for back / forward; hold still to open the shortcut app.
+            shakaHistory.append(Sample(t: t, p: center))
+            shakaHistory.removeAll { t - $0.t > config.swipeWindow }
+            if !shortcutFired, t >= cooldownUntil, let first = shakaHistory.first {
+                let dx = Double(center.x - first.p.x) * aspect
+                if abs(dx) > config.swipeDistance {
+                    actions.append(.navigate(dx < 0 ? .back : .forward))
+                    shortcutFired = true
+                    cooldownUntil = t + config.gestureCooldown
+                    shakaHistory.removeAll()
+                }
+            }
             if !shortcutFired {
                 progress = min(1, (t - poseSince) / config.shortcutHold)
                 if t - poseSince >= config.shortcutHold, t >= cooldownUntil {
@@ -419,7 +486,16 @@ public final class GestureEngine {
         case .fist:
             fistStart = nil
             fistActed = false
-        case .shaka: shortcutFired = false
+        case .shaka:
+            shortcutFired = false
+            shakaHistory.removeAll()
+        case .ringPinch:
+            // Let go quickly without moving and it was a tap, not a volume drag.
+            if !ringMoved, t - poseSince < config.mediaTapWindow {
+                actions.append(.playPause)
+            }
+            volumeAnchor = nil
+            ringMoved = false
         case .neutral, .openPalm: break
         }
         stablePose = new
@@ -427,6 +503,10 @@ public final class GestureEngine {
         switch new {
         case .fist: fistStart = center.map { Sample(t: t, p: $0) }
         case .victory: scrollPrev = center
+        case .shaka: shakaHistory.removeAll()
+        case .ringPinch:
+            volumeAnchor = center
+            ringMoved = false
         default: break
         }
     }
@@ -455,6 +535,10 @@ public final class GestureEngine {
         fistStart = nil
         fistActed = false
         shortcutFired = false
+        shakaHistory.removeAll()
+        volumeAnchor = nil
+        ringMoved = false
+        frameStart = nil
         zoomBaseline = nil
         engageStart = nil
     }

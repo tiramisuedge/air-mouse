@@ -281,6 +281,28 @@ final class AppState: ObservableObject {
         case .zoom(.zoomOut):
             input.zoomOut()
             toast("Zoom out")
+        case .volume(let direction):
+            if direction == .up {
+                input.volumeUp()
+                toast("Volume up")
+            } else {
+                input.volumeDown()
+                toast("Volume down")
+            }
+        case .playPause:
+            input.playPause()
+            toast("Play / pause")
+        case .navigate(let direction):
+            if direction == .back {
+                input.goBack()
+                toast("Back")
+            } else {
+                input.goForward()
+                toast("Forward")
+            }
+        case .screenshot(let from, let to):
+            input.screenshotRegion(from: screenPoint(from), to: screenPoint(to))
+            toast("Screenshot")
         case .shortcut:
             runShortcut()
         }

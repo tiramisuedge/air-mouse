@@ -21,6 +21,8 @@ extension EngineMode {
         case .fist: return .red
         case .shortcut: return .pink
         case .zooming: return .teal
+        case .volume: return .indigo
+        case .framing: return .yellow
         }
     }
 }

@@ -239,6 +239,10 @@ struct GestureGuide: View {
             Item(emoji: "🤌", gesture: "Pinch thumb + middle", action: "Right-click"),
             Item(emoji: "✌️", gesture: "Two fingers up, move hand", action: "Scroll"),
         ]),
+        Section("Media", [
+            Item(emoji: "💍", gesture: "Tap thumb + ring finger", action: "Play / pause"),
+            Item(emoji: "💍↕️", gesture: "Hold thumb + ring, move up / down", action: "Volume"),
+        ]),
         Section("System", [
             Item(emoji: "🖐⬅️", gesture: "Swipe open hand left", action: "Next desktop / full-screen app"),
             Item(emoji: "🖐➡️", gesture: "Swipe open hand right", action: "Previous desktop"),
@@ -247,6 +251,8 @@ struct GestureGuide: View {
             Item(emoji: "✊⬇️", gesture: "Make a fist and pull down", action: "Minimize window"),
             Item(emoji: "🤏 🤏", gesture: "Pinch both hands, spread / squeeze", action: "Zoom in / out"),
             Item(emoji: "🤙", gesture: "Hold shaka (½ s)", action: "Open your shortcut app"),
+            Item(emoji: "🤙⬅️", gesture: "Flick shaka left / right", action: "Back / forward"),
+            Item(emoji: "📷", gesture: "Both hands make corners, hold", action: "Screenshot that region"),
         ]),
     ]
 

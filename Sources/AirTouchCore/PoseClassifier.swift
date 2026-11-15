@@ -15,8 +15,10 @@ public enum Pose: String, CaseIterable {
     case fist
     /// Index + middle extended (✌️). Scroll.
     case victory
-    /// Thumb + little finger extended (🤙). App shortcut.
+    /// Thumb + little finger extended (🤙). App shortcut, and flick for back / forward.
     case shaka
+    /// Thumb tip touching ring tip. Play / pause on a tap, volume when held and moved.
+    case ringPinch
 
     public var emoji: String {
         switch self {
@@ -27,6 +29,7 @@ public enum Pose: String, CaseIterable {
         case .fist: return "✊"
         case .victory: return "✌️"
         case .shaka: return "🤙"
+        case .ringPinch: return "💍"
         }
     }
 
@@ -39,6 +42,7 @@ public enum Pose: String, CaseIterable {
         case .fist: return "Fist"
         case .victory: return "Two fingers"
         case .shaka: return "Shaka"
+        case .ringPinch: return "Ring pinch"
         }
     }
 }
@@ -87,6 +91,17 @@ public struct PoseClassifier {
         return d / scale < pinchOff
     }
 
+    /// An L shape: index out, the other fingers curled, thumb clearly away from the knuckle.
+    /// Only consulted for the two-hand framing gesture, so a one-handed point, which looks
+    /// almost the same, is never stolen from the cursor.
+    public func isCorner(_ hand: Hand) -> Bool {
+        guard let scale = hand.scale, scale > 0 else { return false }
+        let states = PoseClassifier.fingers.map { state(of: $0, in: hand) }
+        let thumbIsOut = (hand.distance(.thumbTip, .indexMCP) ?? 0) / scale > thumbOut
+        return states[0] == .extended && states[1] == .curled
+            && states[2] == .curled && states[3] == .curled && thumbIsOut
+    }
+
     /// Classify a hand. `previous` is the last stable pose; it lets pinches use hysteresis.
     public func classify(_ hand: Hand, previous: Pose = .neutral) -> Pose {
         guard let scale = hand.scale, scale > 0 else { return .neutral }
@@ -94,15 +109,22 @@ public struct PoseClassifier {
         // 1. Pinches first: they are the most time-sensitive (clicks).
         if let di = hand.distance(.thumbTip, .indexTip).map({ $0 / scale }),
            let dm = hand.distance(.thumbTip, .middleTip).map({ $0 / scale }) {
+            let dr = hand.distance(.thumbTip, .ringTip).map { $0 / scale }
             let indexReach = (hand.distance(.indexTip, .wrist) ?? 0) / scale
             let middleReach = (hand.distance(.middleTip, .wrist) ?? 0) / scale
+            let ringReach = (hand.distance(.ringTip, .wrist) ?? 0) / scale
 
             // Holding an existing pinch: only release once clearly apart.
             if previous == .pinch, di < pinchOff { return .pinch }
             if previous == .middlePinch, dm < pinchOff { return .middlePinch }
+            if previous == .ringPinch, let dr, dr < pinchOff { return .ringPinch }
 
-            if di <= dm, di < pinchOn, indexReach > pinchReach { return .pinch }
-            if dm < di, dm < pinchOn, middleReach > pinchReach, di > dm * 1.3 { return .middlePinch }
+            let farthest = Double.infinity
+            if di <= dm, di <= (dr ?? farthest), di < pinchOn, indexReach > pinchReach { return .pinch }
+            if dm < di, dm <= (dr ?? farthest), dm < pinchOn, middleReach > pinchReach,
+               di > dm * 1.3 { return .middlePinch }
+            if let dr, dr < pinchOn, dr < di, dr < dm, ringReach > pinchReach,
+               di > dr * 1.25, dm > dr * 1.25 { return .ringPinch }
         }
 
         // 2. Finger-shape poses.

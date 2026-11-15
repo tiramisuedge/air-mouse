@@ -14,6 +14,16 @@ final class InputController {
         static let equal: CGKeyCode = 0x18
         static let minus: CGKeyCode = 0x1B
         static let space: CGKeyCode = 0x31
+        static let leftBracket: CGKeyCode = 0x21
+        static let rightBracket: CGKeyCode = 0x1E
+        static let four: CGKeyCode = 0x15
+    }
+
+    /// Values from IOKit's NX_KEYTYPE_* list.
+    private enum MediaKey: Int {
+        case soundUp = 0
+        case soundDown = 1
+        case playPause = 16
     }
 
     private let arrowFlags: CGEventFlags = [.maskControl, .maskSecondaryFn, .maskNumericPad]
@@ -73,6 +83,26 @@ final class InputController {
         }
     }
 
+    func goBack() { press(Key.leftBracket, flags: .maskCommand) }
+    func goForward() { press(Key.rightBracket, flags: .maskCommand) }
+
+    func volumeUp() { mediaKey(.soundUp) }
+    func volumeDown() { mediaKey(.soundDown) }
+    func playPause() { mediaKey(.playPause) }
+
+    /// Captures the rectangle between two points by driving macOS's own screenshot tool,
+    /// so AirTouch never needs Screen Recording permission of its own.
+    func screenshotRegion(from: CGPoint, to: CGPoint) {
+        press(Key.four, flags: [.maskCommand, .maskShift])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+            guard let self else { return }
+            self.post(CGEvent(mouseEventSource: self.source, mouseType: .mouseMoved, mouseCursorPosition: from, mouseButton: .left))
+            self.post(CGEvent(mouseEventSource: self.source, mouseType: .leftMouseDown, mouseCursorPosition: from, mouseButton: .left))
+            self.post(CGEvent(mouseEventSource: self.source, mouseType: .leftMouseDragged, mouseCursorPosition: to, mouseButton: .left))
+            self.post(CGEvent(mouseEventSource: self.source, mouseType: .leftMouseUp, mouseCursorPosition: to, mouseButton: .left))
+        }
+    }
+
     func minimizeWindow() { press(Key.m, flags: .maskCommand) }
     func zoomIn() { press(Key.equal, flags: .maskCommand) }
     func zoomOut() { press(Key.minus, flags: .maskCommand) }
@@ -87,6 +117,25 @@ final class InputController {
         up?.flags = flags
         post(down)
         post(up)
+    }
+
+    /// Media keys travel as NSSystemDefined events, not as key codes.
+    private func mediaKey(_ key: MediaKey) {
+        for isDown in [true, false] {
+            let phase = isDown ? 0xA : 0xB
+            let event = NSEvent.otherEvent(
+                with: .systemDefined,
+                location: .zero,
+                modifierFlags: NSEvent.ModifierFlags(rawValue: UInt(phase << 8)),
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                subtype: 8,
+                data1: (key.rawValue << 16) | (phase << 8),
+                data2: -1
+            )
+            event?.cgEvent?.post(tap: .cghidEventTap)
+        }
     }
 
     private func post(_ event: CGEvent?) {
