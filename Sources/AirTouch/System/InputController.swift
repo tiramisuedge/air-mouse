@@ -35,6 +35,10 @@ final class InputController {
     }
 
     func mouseDown(at point: CGPoint, clickCount: Int) {
+        // Move first, then press. The Dock and many apps dispatch a click to wherever
+        // they last saw the pointer, so a press that arrives without a matching move
+        // can land on the wrong thing, or on nothing.
+        post(CGEvent(mouseEventSource: source, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left))
         let event = CGEvent(mouseEventSource: source, mouseType: .leftMouseDown, mouseCursorPosition: point, mouseButton: .left)
         event?.setIntegerValueField(.mouseEventClickState, value: Int64(clickCount))
         post(event)
@@ -51,6 +55,7 @@ final class InputController {
     }
 
     func rightClick(at point: CGPoint) {
+        post(CGEvent(mouseEventSource: source, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left))
         post(CGEvent(mouseEventSource: source, mouseType: .rightMouseDown, mouseCursorPosition: point, mouseButton: .right))
         post(CGEvent(mouseEventSource: source, mouseType: .rightMouseUp, mouseCursorPosition: point, mouseButton: .right))
     }

@@ -111,7 +111,11 @@ public struct GestureConfig {
     /// After a pinch starts, the cursor is frozen this long so clicks land where you aimed.
     public var clickFreeze = 0.15
     /// Movement (normalized screen units) needed while pinched before it becomes a drag.
-    public var dragDeadzone = 0.02
+    /// Generous on purpose: pinching jostles your hand, and a click that turns into a
+    /// drag does nothing useful, it just tries to pick up whatever you aimed at.
+    public var dragDeadzone = 0.05
+    /// Hold a pinch still this long and it becomes a double click.
+    public var doubleHold = 0.5
     public var doubleClickInterval = 0.75
     public var doubleClickDistance = 0.09
 
@@ -200,6 +204,7 @@ public final class GestureEngine {
     private var downTime: Double = 0
     private var dragging = false
     private var clickCount = 0
+    private var doubleFired = false
     private var lastUpTime: Double = -.infinity
     private var lastUpPoint = CGPoint.zero
 
@@ -380,6 +385,16 @@ public final class GestureEngine {
                 if dragging {
                     cursor = pointer
                     actions.append(.mouseDrag(pointer))
+                } else if !doubleFired, t - downTime >= config.doubleHold {
+                    // Held still rather than dragged: finish this click and send a second
+                    // one. Far easier to land than two pinches inside a timing window.
+                    actions.append(.mouseUp(downPoint, clickCount: 1))
+                    actions.append(.mouseDown(downPoint, clickCount: 2))
+                    actions.append(.mouseUp(downPoint, clickCount: 2))
+                    buttonDown = false
+                    doubleFired = true
+                    lastUpTime = t
+                    lastUpPoint = downPoint
                 }
             }
 
@@ -526,6 +541,7 @@ public final class GestureEngine {
         switch stablePose {
         case .pinch:
             releaseButton(t: t, actions: &actions)
+            doubleFired = false
             if drawing { actions.append(.drawEnd) }
         case .threeFingers: drawToggled = false
         case .middlePinch: rightClickFired = false
@@ -607,6 +623,7 @@ public final class GestureEngine {
         }
         buttonDown = true
         dragging = false
+        doubleFired = false
         downTime = t
         downPoint = p
         cursor = p

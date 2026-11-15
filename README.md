@@ -15,6 +15,7 @@ Use your MacBook as if it had a touchscreen, without touching it. AirTouch watch
 | 👋 | Lower your hand | Auto-pause after 1.5 s |
 | ☝️ | Move your hand | Move the cursor |
 | 🤏 | Pinch thumb + index | Click |
+| 🤏⏱ | Pinch and hold still (½ s) | **Double-click**, the reliable way to open things |
 | 🤏🤏 | Pinch twice quickly | Double-click |
 | 🤏➡️ | Pinch, hold and move | Drag / select |
 | 🤌 | Pinch thumb + middle | Right-click |

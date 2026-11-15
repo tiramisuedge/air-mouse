@@ -256,6 +256,7 @@ struct GestureGuide: View {
         Section("Mouse", [
             Item(emoji: "☝️", gesture: "Move your hand", action: "Move the cursor"),
             Item(emoji: "🤏", gesture: "Pinch thumb + index", action: "Click"),
+            Item(emoji: "🤏⏱", gesture: "Pinch and hold still (½ s)", action: "Double-click / open"),
             Item(emoji: "🤏🤏", gesture: "Pinch twice quickly", action: "Double-click"),
             Item(emoji: "🤏➡️", gesture: "Pinch, hold and move", action: "Drag / select"),
             Item(emoji: "🤌", gesture: "Pinch thumb + middle", action: "Right-click"),
