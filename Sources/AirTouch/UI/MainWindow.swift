@@ -39,6 +39,28 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     }
 }
 
+/// Just the gesture list, in its own window, so you can keep it open beside
+/// whatever you are doing while you learn the gestures.
+@MainActor
+final class GuideWindowController {
+    private var window: NSWindow?
+
+    func show() {
+        if window == nil {
+            let controller = NSHostingController(rootView: GestureGuide())
+            let window = NSWindow(contentViewController: controller)
+            window.title = "Gesture Guide"
+            window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+            window.setContentSize(NSSize(width: 460, height: 660))
+            window.isReleasedWhenClosed = false
+            window.center()
+            self.window = window
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        window?.makeKeyAndOrderFront(nil)
+    }
+}
+
 struct MainWindowView: View {
     @ObservedObject var state: AppState
     @ObservedObject var preview: PreviewModel

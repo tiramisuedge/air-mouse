@@ -35,6 +35,7 @@ struct MenuContent: View {
         Divider()
 
         Button("Open AirTouch Window…") { state.showWindow() }
+        Button("Gesture Guide…") { state.showGuide() }
 
         Divider()
 

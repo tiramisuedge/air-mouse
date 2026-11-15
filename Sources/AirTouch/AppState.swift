@@ -121,6 +121,7 @@ final class AppState: ObservableObject {
     private let overlay: OverlayController
     private let drawCanvas: DrawCanvasController
     private let windowController: MainWindowController
+    private let guideWindow = GuideWindowController()
     private var hotKey: GlobalHotKey?
     private var permissionTimer: Timer?
 
@@ -395,6 +396,10 @@ final class AppState: ObservableObject {
 
     func showWindow() {
         windowController.show { MainWindowView(state: self, preview: self.preview) }
+    }
+
+    func showGuide() {
+        guideWindow.show()
     }
 
     private func setPreviewVisible(_ visible: Bool) {
