@@ -49,10 +49,16 @@ public enum GestureAction: Equatable {
     case navigate(NavDirection)
     /// Opposite corners of the region to capture, in normalized screen coordinates.
     case screenshot(from: CGPoint, to: CGPoint)
+    /// Draw mode turned on or off.
+    case toggleDraw(Bool)
+    /// Another point on the stroke being drawn.
+    case drawPoint(CGPoint)
+    case drawEnd
+    case drawClear
 }
 
 public enum EngineMode: String {
-    case paused, tracking, pressing, scrolling, palm, fist, shortcut, zooming, volume, framing
+    case paused, tracking, pressing, scrolling, palm, fist, shortcut, zooming, volume, framing, drawing
 
     public var title: String {
         switch self {
@@ -66,6 +72,7 @@ public enum EngineMode: String {
         case .zooming: return "Zooming"
         case .volume: return "Volume"
         case .framing: return "Framing a shot"
+        case .drawing: return "Drawing"
         }
     }
 }
@@ -80,9 +87,11 @@ public struct EngineSnapshot: Equatable {
     public var pointer: CGPoint?
     /// 0...1 progress of a "hold" gesture (engage, pause, shortcut). Drawn as an arc.
     public var progress: Double
+    /// 1 when your hand is resting, 0 when it is moving fast. The halo swells with it.
+    public var calm: Double
 
     public static let idle = EngineSnapshot(
-        mode: .paused, pose: .neutral, engaged: false, handCount: 0, pointer: nil, progress: 0
+        mode: .paused, pose: .neutral, engaged: false, handCount: 0, pointer: nil, progress: 0, calm: 0
     )
 }
 
@@ -129,6 +138,8 @@ public struct GestureConfig {
     public var volumeStep = 0.045
     /// Seconds both hands must hold the corners before the screenshot is taken.
     public var frameHold = 0.7
+    /// Seconds to hold three fingers up to turn draw mode on or off.
+    public var drawHold = 0.5
 
     /// Two-hand pinch: change in hand separation (fraction) per zoom step.
     public var zoomStep = 0.2
@@ -204,6 +215,9 @@ public final class GestureEngine {
     private var volumeAnchor: CGPoint?
     private var ringMoved = false
     private var frameStart: Sample?
+    private var drawing = false
+    private var drawToggled = false
+    private var calmLevel: Double = 0
 
     public init(config: GestureConfig = GestureConfig(), classifier: PoseClassifier = PoseClassifier()) {
         self.config = config
@@ -216,6 +230,10 @@ public final class GestureEngine {
     public func reset() -> [GestureAction] {
         var actions: [GestureAction] = []
         releaseButton(t: lastHandTime ?? 0, actions: &actions)
+        if drawing {
+            drawing = false
+            actions.append(.toggleDraw(false))
+        }
         clearTransientState()
         engaged = false
         stablePose = .neutral
@@ -332,6 +350,24 @@ public final class GestureEngine {
             cursorHistory.removeAll { t - $0.t > 0.5 }
             actions.append(.moveCursor(pointer))
 
+        case .threeFingers:
+            mode = drawing ? .drawing : .tracking
+            if !drawToggled {
+                progress = min(1, (t - poseSince) / config.drawHold)
+                if t - poseSince >= config.drawHold, t >= cooldownUntil {
+                    drawing.toggle()
+                    drawToggled = true
+                    cooldownUntil = t + config.gestureCooldown
+                    progress = 0
+                    actions.append(.toggleDraw(drawing))
+                }
+            }
+
+        case .pinch where drawing:
+            mode = .drawing
+            cursor = pointer
+            actions.append(.drawPoint(pointer))
+
         case .pinch:
             mode = .pressing
             if !buttonDown {
@@ -365,6 +401,14 @@ public final class GestureEngine {
                 }
             } else {
                 scrollPrev = center
+            }
+
+        case .openPalm where drawing:
+            // In draw mode an open palm wipes the sheet instead of changing desktop.
+            mode = .drawing
+            if t >= cooldownUntil {
+                actions.append(.drawClear)
+                cooldownUntil = t + config.gestureCooldown
             }
 
         case .openPalm:
@@ -480,7 +524,10 @@ public final class GestureEngine {
 
     private func setPose(_ new: Pose, t: Double, center: CGPoint?, actions: inout [GestureAction]) {
         switch stablePose {
-        case .pinch: releaseButton(t: t, actions: &actions)
+        case .pinch:
+            releaseButton(t: t, actions: &actions)
+            if drawing { actions.append(.drawEnd) }
+        case .threeFingers: drawToggled = false
         case .middlePinch: rightClickFired = false
         case .victory: scrollPrev = nil
         case .fist:
@@ -523,6 +570,10 @@ public final class GestureEngine {
 
     private func pause(t: Double, actions: inout [GestureAction]) {
         releaseButton(t: t, actions: &actions)
+        if drawing {
+            drawing = false
+            actions.append(.toggleDraw(false))
+        }
         clearTransientState()
         engaged = false
         actions.append(.paused)
@@ -541,6 +592,8 @@ public final class GestureEngine {
         frameStart = nil
         zoomBaseline = nil
         engageStart = nil
+        drawToggled = false
+        calmLevel = 0
     }
 
     private func press(t: Double, actions: inout [GestureAction]) {
@@ -589,6 +642,7 @@ public final class GestureEngine {
             return p
         }
         let speed = plainDistance(p, last) / (t - lastT)
+        calmLevel = max(0, min(1, 1 - speed / max(config.precisionHighSpeed, 0.0001)))
         let span = max(config.precisionHighSpeed - config.precisionLowSpeed, 0.0001)
         let ratio = min(1, max(0, (speed - config.precisionLowSpeed) / span))
         let gain = config.precisionGain + (1 - config.precisionGain) * ratio
@@ -616,7 +670,8 @@ public final class GestureEngine {
             engaged: engaged,
             handCount: handCount,
             pointer: pointer,
-            progress: progress
+            progress: progress,
+            calm: calmLevel
         )
     }
 }

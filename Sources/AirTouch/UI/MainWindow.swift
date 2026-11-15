@@ -243,6 +243,11 @@ struct GestureGuide: View {
             Item(emoji: "💍", gesture: "Tap thumb + ring finger", action: "Play / pause"),
             Item(emoji: "💍↕️", gesture: "Hold thumb + ring, move up / down", action: "Volume"),
         ]),
+        Section("Draw", [
+            Item(emoji: "🤟", gesture: "Hold three fingers up (½ s)", action: "Draw mode on / off"),
+            Item(emoji: "✍️", gesture: "Pinch and move while drawing", action: "Draw a glowing line"),
+            Item(emoji: "🖐", gesture: "Open palm while drawing", action: "Wipe the sheet"),
+        ]),
         Section("System", [
             Item(emoji: "🖐⬅️", gesture: "Swipe open hand left", action: "Next desktop / full-screen app"),
             Item(emoji: "🖐➡️", gesture: "Swipe open hand right", action: "Previous desktop"),

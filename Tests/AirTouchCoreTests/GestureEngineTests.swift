@@ -68,6 +68,9 @@ enum FakeHand {
     static func ringPinch(at c: CGPoint = CGPoint(x: 0.5, y: 0.55)) -> Hand {
         make(at: c, little: .curled, pinchRing: true)
     }
+    static func threeFingers(at c: CGPoint = CGPoint(x: 0.5, y: 0.55)) -> Hand {
+        make(at: c, little: .curled, thumbOut: false)
+    }
     static func shaka(at c: CGPoint = CGPoint(x: 0.5, y: 0.55)) -> Hand {
         make(at: c, index: .curled, middle: .curled, ring: .curled, little: .extended, thumbOut: true)
     }
@@ -151,6 +154,17 @@ final class GestureEngineTests: XCTestCase {
         }
         XCTAssertTrue(actions.contains(.navigate(.forward)))
         XCTAssertFalse(actions.contains(.shortcut))
+    }
+
+    func testThreeFingersTurnDrawModeOnAndPinchDrawsInsteadOfClicking() {
+        engage()
+        feed(FakeHand.point(), for: 0.7)
+        let turnedOn = feed(FakeHand.threeFingers(), for: 0.8)
+        XCTAssertTrue(turnedOn.contains(.toggleDraw(true)))
+
+        let drawn = feed(FakeHand.point(), for: 0.2) + feed(FakeHand.pinch(), for: 0.2)
+        XCTAssertTrue(drawn.contains { if case .drawPoint = $0 { return true } else { return false } })
+        XCTAssertFalse(drawn.contains { if case .mouseDown = $0 { return true } else { return false } })
     }
 
     func testPinchClicks() {

@@ -51,6 +51,7 @@ struct MenuContent: View {
         }
 
         Toggle("Show Cursor Ring", isOn: $state.showOverlay)
+        Toggle("Draw in Black Ink", isOn: $state.darkInk)
         Toggle("Require 🖐 Palm to Start", isOn: $state.requirePalm)
 
         Menu("Directions") {

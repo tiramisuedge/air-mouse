@@ -7,6 +7,7 @@ final class OverlayModel: ObservableObject {
     @Published var mode: EngineMode = .paused
     @Published var engaged = false
     @Published var progress: Double = 0
+    @Published var calm: Double = 0
     @Published var toast: String?
 }
 
@@ -23,6 +24,7 @@ extension EngineMode {
         case .zooming: return .teal
         case .volume: return .indigo
         case .framing: return .yellow
+        case .drawing: return .white
         }
     }
 }
@@ -62,6 +64,7 @@ final class OverlayController {
         if model.mode != snapshot.mode { model.mode = snapshot.mode }
         if model.engaged != snapshot.engaged { model.engaged = snapshot.engaged }
         if abs(model.progress - snapshot.progress) > 0.01 { model.progress = snapshot.progress }
+        if abs(model.calm - snapshot.calm) > 0.03 { model.calm = snapshot.calm }
         if !model.ringVisible { model.ringVisible = true }
         if !panel.isVisible { panel.orderFrontRegardless() }
     }
@@ -105,8 +108,30 @@ struct OverlayView: View {
         }
     }
 
+    /// The halo swells as your hand settles, so whatever you are reaching for lights up.
+    private var haloSize: CGFloat {
+        48 + 86 * CGFloat(model.calm)
+    }
+
     var body: some View {
         ZStack {
+            if model.ringVisible, model.engaged {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                model.mode.color.opacity(0.40 * model.calm),
+                                model.mode.color.opacity(0.10 * model.calm),
+                                .clear,
+                            ],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: haloSize / 2
+                        )
+                    )
+                    .frame(width: haloSize, height: haloSize)
+                    .animation(.easeOut(duration: 0.18), value: model.calm)
+            }
             if model.ringVisible {
                 Circle()
                     .fill(model.mode.color.opacity(model.engaged ? 0.18 : 0.06))

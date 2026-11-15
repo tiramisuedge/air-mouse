@@ -26,6 +26,13 @@ Use your MacBook as if it had a touchscreen, without touching it. AirTouch watch
 | ✊⬇️ | Make a fist and pull it down | Minimize window |
 | 🤏 🤏 | Pinch with both hands, spread / squeeze | Zoom in / out (⌘+ / ⌘−) |
 | 🤙 | Hold shaka (½ s) | Open your shortcut app (Spotlight by default) |
+| 💍 | Tap thumb + ring finger | Play / pause |
+| 💍↕️ | Hold thumb + ring, move up / down | Volume |
+| 🤙⬅️ | Flick shaka left or right | Back / forward |
+| 📷 | Both hands make corners, hold | Screenshot that region |
+| 🤟 | Hold three fingers up (½ s) | Draw mode on / off |
+| ✍️ | Pinch and move while drawing | Draw a glowing line |
+| 🖐 | Open palm while drawing | Wipe the sheet |
 
 A ring follows your hand on screen so you always know what AirTouch is doing:
 **dashed gray** = seen but paused · **blue** = moving the cursor · **green** = pressing · **purple** = scrolling · **orange** = palm/swipe · **red** = fist · **white arc** = hold-to-confirm progress.
@@ -68,6 +75,8 @@ This builds `AirTouch.app`, copies it to `/Applications` and launches it. A ✋ 
 - Sit about an arm's length from the screen so the camera can see your face and your raised hand.
 - Open **AirTouch Window…** from the menu to see the camera, your tracked hand skeleton and the **active zone** (the dashed box). That box maps to your whole screen.
 - Change **Sensitivity** in the menu. *High* means small hand movements cover the whole screen.
+- Change **Pace** in the menu if the cursor feels wrong. *Gentle* is the steadiest, *Quick* is the most responsive. The cursor also slows itself near whatever you are reaching for, so the last inch is easier than the first.
+- Draw mode paints on a see-through sheet over your desktop. It never changes your wallpaper, and the strokes vanish when you switch it off. Use **Draw in Black Ink** in the menu on a light wallpaper.
 - Good, even lighting makes a big difference. A bright window behind you makes tracking worse.
 - Swipes or scrolling going the wrong way? Go to Menu › **Directions** › Reverse Swipe or Reverse Scroll.
 - Is the cursor moving opposite to your hand? Go to Menu › Directions › **Mirror Camera**.

@@ -65,6 +65,7 @@ final class AppState: ObservableObject {
     private enum Keys {
         static let sensitivity = "sensitivity"
         static let pace = "pace"
+        static let darkInk = "darkInk"
         static let showOverlay = "showOverlay"
         static let requirePalm = "requirePalm"
         static let mirrorCamera = "mirrorCamera"
@@ -93,6 +94,9 @@ final class AppState: ObservableObject {
     @Published var showOverlay: Bool {
         didSet { save(showOverlay, Keys.showOverlay); if !showOverlay { overlay.hideAll() } }
     }
+    @Published var darkInk: Bool {
+        didSet { save(darkInk, Keys.darkInk); drawCanvas.dark = darkInk }
+    }
     @Published var requirePalm: Bool {
         didSet { save(requirePalm, Keys.requirePalm); applyConfig() }
     }
@@ -115,6 +119,7 @@ final class AppState: ObservableObject {
     private let pipeline: TrackingPipeline
     private let input: InputController
     private let overlay: OverlayController
+    private let drawCanvas: DrawCanvasController
     private let windowController: MainWindowController
     private var hotKey: GlobalHotKey?
     private var permissionTimer: Timer?
@@ -125,6 +130,7 @@ final class AppState: ObservableObject {
         let d = UserDefaults.standard
         _sensitivity = Published(initialValue: Sensitivity(rawValue: d.string(forKey: Keys.sensitivity) ?? "") ?? .medium)
         _pace = Published(initialValue: Pace(rawValue: d.string(forKey: Keys.pace) ?? "") ?? .natural)
+        _darkInk = Published(initialValue: d.bool(forKey: Keys.darkInk))
         _showOverlay = Published(initialValue: d.object(forKey: Keys.showOverlay) as? Bool ?? true)
         _requirePalm = Published(initialValue: d.object(forKey: Keys.requirePalm) as? Bool ?? true)
         _mirrorCamera = Published(initialValue: d.object(forKey: Keys.mirrorCamera) as? Bool ?? true)
@@ -136,7 +142,9 @@ final class AppState: ObservableObject {
         pipeline = TrackingPipeline()
         input = InputController()
         overlay = OverlayController()
+        drawCanvas = DrawCanvasController()
         windowController = MainWindowController()
+        drawCanvas.dark = darkInk
 
         pipeline.mirror = mirrorCamera
         pipeline.onResult = { [weak self] result in self?.handle(result) }
@@ -201,6 +209,8 @@ final class AppState: ObservableObject {
 
     private func stopTracking() {
         pipeline.stop()
+        drawCanvas.hide()
+        drawCanvas.clear()
         engine.reset().forEach(perform)
         isEnabled = false
         overlay.hideAll()
@@ -281,6 +291,22 @@ final class AppState: ObservableObject {
         case .zoom(.zoomOut):
             input.zoomOut()
             toast("Zoom out")
+        case .toggleDraw(let on):
+            if on {
+                drawCanvas.show()
+                toast("Draw mode on")
+            } else {
+                drawCanvas.hide()
+                drawCanvas.clear()
+                toast("Draw mode off")
+            }
+        case .drawPoint(let point):
+            drawCanvas.add(screenPoint(point))
+        case .drawEnd:
+            drawCanvas.endStroke()
+        case .drawClear:
+            drawCanvas.clear()
+            toast("Wiped")
         case .volume(let direction):
             if direction == .up {
                 input.volumeUp()
