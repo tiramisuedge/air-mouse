@@ -49,10 +49,6 @@ cd air-mouse
 ```
 
 ```bash
-git checkout claude/optimistic-meitner-135v0t
-```
-
-```bash
 ./scripts/install.sh
 ```
 
