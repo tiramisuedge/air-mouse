@@ -19,6 +19,8 @@ public enum Pose: String, CaseIterable {
     case shaka
     /// Thumb tip touching ring tip. Play / pause on a tap, volume when held and moved.
     case ringPinch
+    /// Index + middle + ring extended, little curled. Holds to turn draw mode on and off.
+    case threeFingers
 
     public var emoji: String {
         switch self {
@@ -30,6 +32,7 @@ public enum Pose: String, CaseIterable {
         case .victory: return "✌️"
         case .shaka: return "🤙"
         case .ringPinch: return "💍"
+        case .threeFingers: return "🤟"
         }
     }
 
@@ -43,6 +46,7 @@ public enum Pose: String, CaseIterable {
         case .victory: return "Two fingers"
         case .shaka: return "Shaka"
         case .ringPinch: return "Ring pinch"
+        case .threeFingers: return "Three fingers"
         }
     }
 }
@@ -117,7 +121,9 @@ public struct PoseClassifier {
             // Holding an existing pinch: only release once clearly apart.
             if previous == .pinch, di < pinchOff { return .pinch }
             if previous == .middlePinch, dm < pinchOff { return .middlePinch }
-            if previous == .ringPinch, let dr, dr < pinchOff { return .ringPinch }
+            // The ring finger must still be reaching for the thumb. Without this a tucked
+            // thumb sits close enough to a curled ring finger to hold the pinch forever.
+            if previous == .ringPinch, let dr, dr < pinchOff, ringReach > pinchReach { return .ringPinch }
 
             let farthest = Double.infinity
             if di <= dm, di <= (dr ?? farthest), di < pinchOn, indexReach > pinchReach { return .pinch }
@@ -135,6 +141,8 @@ public struct PoseClassifier {
         if states.allSatisfy({ $0 == .extended }) { return .openPalm }
         if states[0] == .extended, states[1] == .extended,
            states[2] == .curled, states[3] == .curled { return .victory }
+        if states[0] == .extended, states[1] == .extended,
+           states[2] == .extended, states[3] == .curled { return .threeFingers }
         if states[3] == .extended, states[0] == .curled,
            states[1] == .curled, states[2] == .curled, thumbIsOut { return .shaka }
 
