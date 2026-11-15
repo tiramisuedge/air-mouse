@@ -1,0 +1,54 @@
+name: macOS build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Build (debug)
+        run: swift build 2>&1 | tee build-debug.log
+
+      - name: Unit tests
+        run: swift test 2>&1 | tee test.log
+
+      - name: Build app bundle (release)
+        run: ./scripts/build.sh 2>&1 | tee build-release.log
+
+      - name: Verify bundle
+        run: |
+          plutil -lint build/AirTouch.app/Contents/Info.plist
+          codesign --verify --verbose build/AirTouch.app
+          file build/AirTouch.app/Contents/MacOS/AirTouch
+
+      - name: Smoke test (launch, stays alive 10 s)
+        run: |
+          build/AirTouch.app/Contents/MacOS/AirTouch > app.log 2>&1 &
+          PID=$!
+          sleep 10
+          if kill -0 "$PID" 2>/dev/null; then
+            echo "✅ AirTouch still running after 10 s"
+            kill "$PID"
+          else
+            echo "❌ AirTouch exited early"; cat app.log; exit 1
+          fi
+          cat app.log
+
+      - name: Warnings summary
+        if: always()
+        run: grep -hE "warning:|error:" build-*.log test.log 2>/dev/null | sort -u || true
