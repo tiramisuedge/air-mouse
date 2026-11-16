@@ -139,10 +139,13 @@ public struct PoseClassifier {
 
         if states.allSatisfy({ $0 == .curled }) { return .fist }
         if states.allSatisfy({ $0 == .extended }) { return .openPalm }
+        // Three fingers is the strict one, so test it before the looser two-finger shape.
         if states[0] == .extended, states[1] == .extended,
-           states[2] == .curled, states[3] == .curled { return .victory }
+           states[2] == .extended, states[3] != .extended { return .threeFingers }
+        // Two fingers only asks that the last two are not extended. Demanding a definite
+        // curl meant a half-folded ring finger read as neither, and scrolling never fired.
         if states[0] == .extended, states[1] == .extended,
-           states[2] == .extended, states[3] == .curled { return .threeFingers }
+           states[2] != .extended, states[3] != .extended { return .victory }
         if states[3] == .extended, states[0] == .curled,
            states[1] == .curled, states[2] == .curled, thumbIsOut { return .shaka }
 

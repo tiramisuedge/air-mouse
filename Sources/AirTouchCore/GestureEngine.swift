@@ -382,8 +382,10 @@ public final class GestureEngine {
         case .pinch:
             mode = .pressing
             if !buttonDown {
-                // Only click when exactly one hand is visible (avoids clicks when starting a zoom).
-                if usable.count == 1 { press(t: t, actions: &actions) }
+                // The guard here is only about two-hand zoom, so look at what the other hand
+                // is doing rather than whether it exists. Requiring a single hand meant your
+                // resting hand, which a laptop camera always sees, silently killed every click.
+                if !otherHandPinching(usable) { press(t: t, actions: &actions) }
             } else if t - downTime >= config.clickFreeze {
                 if !dragging, plainDistance(pointer, downPoint) > config.dragDeadzone {
                     dragging = true
@@ -406,7 +408,7 @@ public final class GestureEngine {
 
         case .middlePinch:
             mode = .tracking
-            if !rightClickFired, usable.count == 1 {
+            if !rightClickFired, !otherHandPinching(usable) {
                 actions.append(.rightClick(cursor ?? pointer))
                 rightClickFired = true
             }
@@ -679,6 +681,12 @@ public final class GestureEngine {
         precisionPoint = result
         precisionTime = t
         return result
+    }
+
+    /// True only when a second hand is also pinching, which is the start of a zoom.
+    private func otherHandPinching(_ usable: [Hand]) -> Bool {
+        guard usable.count >= 2 else { return false }
+        return classifier.isPinching(usable[1])
     }
 
     private func plainDistance(_ a: CGPoint, _ b: CGPoint) -> Double {

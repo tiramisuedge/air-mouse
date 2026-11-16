@@ -4,7 +4,9 @@ import XCTest
 
 /// Builds synthetic hands (fingers pointing up, palm facing the camera).
 enum FakeHand {
-    enum Finger { case extended, curled }
+    /// `half` sits between the classifier's curled and extended thresholds, so it reads
+    /// as neither: the state a real finger spends most of its time in.
+    enum Finger { case extended, curled, half }
 
     static func make(
         at c: CGPoint = CGPoint(x: 0.5, y: 0.55),
@@ -32,6 +34,10 @@ enum FakeHand {
                 p[pip] = CGPoint(x: base.x, y: base.y - 0.04)
                 p[dip] = CGPoint(x: base.x, y: base.y - 0.02)
                 p[tip] = CGPoint(x: base.x, y: base.y + 0.02)
+            case .half:
+                p[pip] = CGPoint(x: base.x, y: base.y - 0.05)
+                p[dip] = CGPoint(x: base.x, y: base.y - 0.07)
+                p[tip] = CGPoint(x: base.x, y: base.y - 0.065)
             }
         }
         finger(-0.045, index, .indexMCP, .indexPIP, .indexDIP, .indexTip)
@@ -180,6 +186,30 @@ final class GestureEngineTests: XCTestCase {
         let high = config.zoneCenter.y - halfHeight * 0.9
         feed(FakeHand.point(at: CGPoint(x: 0.5, y: high)), for: 1.0)
         XCTAssertEqual(Double(engine.snapshot.pointer?.y ?? 1), 0.0, accuracy: 0.01)
+    }
+
+    func testClicksStillWorkWhileYourOtherHandIsInFrame() {
+        engage()
+        feed(FakeHand.point(), for: 0.3)
+        // A resting hand off to one side, as every laptop camera sees.
+        let resting = FakeHand.point(at: CGPoint(x: 0.85, y: 0.70))
+        var actions: [GestureAction] = []
+        for _ in 0..<12 {
+            actions += engine.process(hands: [FakeHand.pinch(), resting], time: t)
+            t += dt
+        }
+        XCTAssertTrue(actions.contains { if case .mouseDown = $0 { return true } else { return false } })
+    }
+
+    func testTwoFingersScrollWithASlackRingFinger() {
+        let classifier = PoseClassifier()
+        // Ring finger half folded, which is what people actually do.
+        let slack = FakeHand.make(
+            at: CGPoint(x: 0.5, y: 0.55),
+            ring: .half, little: .curled, thumbOut: false
+        )
+        XCTAssertEqual(classifier.state(of: PoseClassifier.fingers[2], in: slack), .unknown)
+        XCTAssertEqual(classifier.classify(slack), .victory)
     }
 
     func testPinchClicks() {
