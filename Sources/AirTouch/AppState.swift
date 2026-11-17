@@ -257,7 +257,7 @@ final class AppState: ObservableObject {
     private func perform(_ action: GestureAction) {
         switch action {
         case .engaged:
-            toast("🖐 AirTouch active")
+            toast(accessibilityGranted ? "🖐 AirTouch active" : "Accessibility is off: clicks blocked")
         case .paused:
             toast("Paused")
         case .moveCursor(let p):
@@ -348,6 +348,13 @@ final class AppState: ObservableObject {
         let new: StatusSummary
         if !isEnabled {
             new = .off
+        } else if !accessibilityGranted {
+            // Without it macOS still lets the cursor move, which makes everything look
+            // fine while every click, scroll and shortcut is thrown away.
+            new = StatusSummary(
+                text: "Accessibility is off: clicks and scrolling are blocked",
+                icon: "exclamationmark.triangle"
+            )
         } else if !s.engaged {
             new = StatusSummary(
                 text: s.handCount > 0 ? "Hand seen: hold 🖐 to start" : "Waiting: raise your hand",
