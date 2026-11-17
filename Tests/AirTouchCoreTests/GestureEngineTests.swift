@@ -212,6 +212,23 @@ final class GestureEngineTests: XCTestCase {
         XCTAssertEqual(classifier.classify(slack), .victory)
     }
 
+    func testRestingTheCursorClicksOnce() {
+        engage()
+        let actions = feed(FakeHand.point(), for: 2.4)
+        let downs = actions.filter { if case .mouseDown(_, 1) = $0 { return true } else { return false } }
+        let ups = actions.filter { if case .mouseUp(_, 1) = $0 { return true } else { return false } }
+        // One click, however long the cursor keeps resting there.
+        XCTAssertEqual(downs.count, 1)
+        XCTAssertEqual(ups.count, 1)
+    }
+
+    func testRestingDoesNotClickWhenTurnedOff() {
+        engine.config.dwellClick = false
+        engage()
+        let actions = feed(FakeHand.point(), for: 2.4)
+        XCTAssertFalse(actions.contains { if case .mouseDown = $0 { return true } else { return false } })
+    }
+
     func testPinchClicks() {
         engage()
         feed(FakeHand.point(), for: 0.3)

@@ -66,6 +66,7 @@ final class AppState: ObservableObject {
         static let sensitivity = "sensitivity"
         static let pace = "pace"
         static let darkInk = "darkInk"
+        static let dwellClick = "dwellClick"
         static let showOverlay = "showOverlay"
         static let requirePalm = "requirePalm"
         static let mirrorCamera = "mirrorCamera"
@@ -93,6 +94,9 @@ final class AppState: ObservableObject {
     }
     @Published var showOverlay: Bool {
         didSet { save(showOverlay, Keys.showOverlay); if !showOverlay { overlay.hideAll() } }
+    }
+    @Published var dwellClick: Bool {
+        didSet { save(dwellClick, Keys.dwellClick); applyConfig() }
     }
     @Published var darkInk: Bool {
         didSet { save(darkInk, Keys.darkInk); drawCanvas.dark = darkInk }
@@ -132,6 +136,7 @@ final class AppState: ObservableObject {
         _sensitivity = Published(initialValue: Sensitivity(rawValue: d.string(forKey: Keys.sensitivity) ?? "") ?? .medium)
         _pace = Published(initialValue: Pace(rawValue: d.string(forKey: Keys.pace) ?? "") ?? .natural)
         _darkInk = Published(initialValue: d.bool(forKey: Keys.darkInk))
+        _dwellClick = Published(initialValue: d.object(forKey: Keys.dwellClick) as? Bool ?? true)
         _showOverlay = Published(initialValue: d.object(forKey: Keys.showOverlay) as? Bool ?? true)
         _requirePalm = Published(initialValue: d.object(forKey: Keys.requirePalm) as? Bool ?? true)
         _mirrorCamera = Published(initialValue: d.object(forKey: Keys.mirrorCamera) as? Bool ?? true)
@@ -428,6 +433,7 @@ final class AppState: ObservableObject {
         config.requirePalmToEngage = requirePalm
         config.smoothingMinCutoff = pace.smoothing.minCutoff
         config.smoothingBeta = pace.smoothing.beta
+        config.dwellClick = dwellClick
         engine.config = config
         // Draw the box you actually have to cover, which is smaller than the zone
         // because its outer edge already maps past the screen.

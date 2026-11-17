@@ -58,8 +58,12 @@ public struct PoseClassifier {
     public var pinchOn = 0.30
     /// Gap above which an active pinch is released (hysteresis keeps clicks clean).
     public var pinchOff = 0.45
-    /// A pinching fingertip must be at least this far from the wrist (tells a pinch from a fist).
-    public var pinchReach = 1.1
+    /// A pinching fingertip must be at least this far from the wrist, in hand-size units.
+    /// This is what tells a pinch from a fist. Bringing the index to the thumb curls the
+    /// finger and pulls the tip back towards the wrist, so too high a bar rejects real
+    /// pinches. Eased from 1.1; the AirTouch window shows the live number so it can be set
+    /// from a real hand rather than guessed.
+    public var pinchReach = 1.0
     /// tip-to-wrist / pip-to-wrist above this ⇒ finger extended.
     public var extendedRatio = 1.18
     /// tip-to-wrist / pip-to-wrist below this ⇒ finger curled.
@@ -86,6 +90,15 @@ public struct PoseClassifier {
         if ratio > extendedRatio { return .extended }
         if ratio < curledRatio { return .curled }
         return .unknown
+    }
+
+    /// The two numbers a click depends on, for the readout in the AirTouch window:
+    /// `gap` has to drop below `pinchOn`, and `reach` has to stay above `pinchReach`.
+    public func pinchMetrics(_ hand: Hand) -> (gap: Double, reach: Double)? {
+        guard let scale = hand.scale, scale > 0,
+              let gap = hand.distance(.thumbTip, .indexTip),
+              let reach = hand.distance(.indexTip, .wrist) else { return nil }
+        return (gap / scale, reach / scale)
     }
 
     /// Is the thumb tip within pinching distance of the index tip? (Looser test used for two-hand zoom.)

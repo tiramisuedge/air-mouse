@@ -151,6 +151,14 @@ public struct GestureConfig {
     /// Seconds to hold three fingers up to turn draw mode on or off.
     public var drawHold = 0.5
 
+    /// Rest the cursor on something and it clicks by itself. Works with no pose at all,
+    /// so it keeps working when a pinch is misread.
+    public var dwellClick = true
+    /// Seconds the cursor must sit still before a dwell click fires.
+    public var dwellTime = 1.0
+    /// How far the cursor may wander and still count as resting (fraction of the screen).
+    public var dwellRadius = 0.012
+
     /// Two-hand pinch: change in hand separation (fraction) per zoom step.
     public var zoomStep = 0.2
 
@@ -228,6 +236,9 @@ public final class GestureEngine {
     private var frameStart: Sample?
     private var drawing = false
     private var drawToggled = false
+    private var dwellAnchor: CGPoint?
+    private var dwellStart: Double = 0
+    private var dwellFired = false
     private var calmLevel: Double = 0
 
     public init(config: GestureConfig = GestureConfig(), classifier: PoseClassifier = PoseClassifier()) {
@@ -360,6 +371,24 @@ public final class GestureEngine {
             cursorHistory.append(Sample(t: t, p: pointer))
             cursorHistory.removeAll { t - $0.t > 0.5 }
             actions.append(.moveCursor(pointer))
+
+            if config.dwellClick, !drawing {
+                if let anchor = dwellAnchor, plainDistance(pointer, anchor) < config.dwellRadius {
+                    if !dwellFired, t >= cooldownUntil {
+                        progress = min(1, (t - dwellStart) / config.dwellTime)
+                        if t - dwellStart >= config.dwellTime {
+                            actions.append(.mouseDown(pointer, clickCount: 1))
+                            actions.append(.mouseUp(pointer, clickCount: 1))
+                            dwellFired = true
+                            progress = 0
+                        }
+                    }
+                } else {
+                    dwellAnchor = pointer
+                    dwellStart = t
+                    dwellFired = false
+                }
+            }
 
         case .threeFingers:
             mode = drawing ? .drawing : .tracking
@@ -618,6 +647,8 @@ public final class GestureEngine {
         engageStart = nil
         drawToggled = false
         calmLevel = 0
+        dwellAnchor = nil
+        dwellFired = false
     }
 
     private func press(t: Double, actions: inout [GestureAction]) {

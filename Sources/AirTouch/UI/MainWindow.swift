@@ -102,15 +102,32 @@ struct MainWindowView: View {
     }
 
     private var statusRow: some View {
-        HStack(spacing: 18) {
-            Label(state.isEnabled ? preview.snapshot.mode.title : "Off", systemImage: "circle.fill")
-                .foregroundColor(state.isEnabled ? preview.snapshot.mode.color : .secondary)
-            Text("Pose: \(preview.snapshot.pose.emoji) \(preview.snapshot.pose.title)")
-            Text("Hands: \(preview.snapshot.handCount)")
-            Spacer()
-            Text("Shortcut: ⌥⌘A").foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 18) {
+                Label(state.isEnabled ? preview.snapshot.mode.title : "Off", systemImage: "circle.fill")
+                    .foregroundColor(state.isEnabled ? preview.snapshot.mode.color : .secondary)
+                Text("Pose: \(preview.snapshot.pose.emoji) \(preview.snapshot.pose.title)")
+                Text("Hands: \(preview.snapshot.handCount)")
+                Spacer()
+                Text("Shortcut: ⌥⌘A").foregroundColor(.secondary)
+            }
+            Text(pinchReadout).foregroundColor(.secondary)
         }
         .font(.callout.monospacedDigit())
+    }
+
+    /// The live numbers behind a click, so a pinch that will not register can be read off
+    /// the screen instead of guessed at.
+    private var pinchReadout: String {
+        let classifier = PoseClassifier()
+        let biggest = preview.hands.max { ($0.scale ?? 0) < ($1.scale ?? 0) }
+        guard let hand = biggest, let metrics = classifier.pinchMetrics(hand) else {
+            return "Pinch gap: none   reach: none"
+        }
+        return String(
+            format: "Pinch gap: %.2f (clicks under %.2f)   reach: %.2f (needs over %.2f)",
+            metrics.gap, classifier.pinchOn, metrics.reach, classifier.pinchReach
+        )
     }
 }
 
@@ -255,6 +272,7 @@ struct GestureGuide: View {
         ]),
         Section("Mouse", [
             Item(emoji: "☝️", gesture: "Move your hand", action: "Move the cursor"),
+            Item(emoji: "⏳", gesture: "Rest the cursor on something (1 s)", action: "Click"),
             Item(emoji: "🤏", gesture: "Pinch thumb + index", action: "Click"),
             Item(emoji: "🤏⏱", gesture: "Pinch and hold still (½ s)", action: "Double-click / open"),
             Item(emoji: "🤏🤏", gesture: "Pinch twice quickly", action: "Double-click"),

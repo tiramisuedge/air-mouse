@@ -52,6 +52,7 @@ struct MenuContent: View {
         }
 
         Toggle("Show Cursor Ring", isOn: $state.showOverlay)
+        Toggle("Click by Resting the Cursor", isOn: $state.dwellClick)
         Toggle("Draw in Black Ink", isOn: $state.darkInk)
         Toggle("Require 🖐 Palm to Start", isOn: $state.requirePalm)
 
